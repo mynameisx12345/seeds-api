@@ -50,13 +50,13 @@ CREATE TABLE seeds (
 );
 
 INSERT INTO seeds (name, qty_remaining, uom)
-VALUES('Palay', 200, 'sack');
+VALUES('Squash', 200, 'sack');
 
 INSERT INTO seeds (name, qty_remaining, uom)
-VALUES('Mongo', 400, 'box');
+VALUES('Sitaw', 400, 'box');
 
 INSERT INTO seeds (name, qty_remaining, uom)
-VALUES('Beans', 890, 'pack');
+VALUES('Okra', 890, 'pack');
 
 
 CREATE TABLE seeds_remaining (
@@ -165,3 +165,27 @@ VALUES('Maria Santiago','09123456789', 'address 456',1,now());
 
 INSERT INTO farmers (name, contact, address, municipality_id, dt_created)
 VALUES('Farmer 6','09123456789', 'address 772',3,now());
+
+CREATE TABLE municipality_distribute_hdr (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    municipality_id INT,
+    FOREIGN KEY (municipality_id) REFERENCES municipality(id),
+    dt_created DATETIME,
+    dt_modified DATETIME,
+    dt_submitted DATETIME,
+    status CHAR(1)
+);
+
+CREATE TABLE municipality_distribute_dtl (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    seed_id INT,
+    FOREIGN KEY (seed_id) REFERENCES seeds(id),
+    qty_remaining DECIMAL(12,2),
+    uom VARCHAR(50),
+    qty_distributed DECIMAL(12,2),
+    remarks VARCHAR(200),
+    hdr_id INT,
+    FOREIGN KEY (hdr_id) REFERENCES municipality_distribute_hdr(id),
+    farmer_id INT,
+    FOREIGN KEY (farmer_id) REFERENCES farmers(id)
+);

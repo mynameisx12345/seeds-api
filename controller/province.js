@@ -179,6 +179,16 @@ export async function updateSeedMain(detail){
         `,[newRemaining, newTransit, seedId])
 
         updateSeedSub({...detail, warehouseType:'municipality',qty: qtyReceived, municipalityId})
+    } else if(transactType === 'MDIST'){
+        const newRemaining = (Number(seedQtyRemaining) ?? 0) - Number(qtyDistributed);
+        const [mdistResult] = await pool.query(`
+            UPDATE seeds
+            SET qty_remaining = ?
+            WHERE id = ?
+        `,[newRemaining, seedId])
+
+        updateSeedSub({...detail, warehouseType:'municipality',qty: (qtyDistributed * -1), municipalityId})
+
     }
 }
 
@@ -338,7 +348,6 @@ export async function getDistributions(id){
             ORDER BY  hdr.id DESC
         `, [id])
 
-        console.log('res1', result)
 
         finalResult = result;
     } else {
@@ -417,7 +426,24 @@ export async function getInventoryReport(body){
     }
 
     return finalResult
+}
 
-    
- 
+export async function addSeed(body){
+    const {seedName, qtyRemaining, uom} = body;
+    const [seedResult] = await pool.query(`
+        INSERT INTO seeds (name, qty_remaining, uom)
+        VALUES(?,?,?)
+    `,[seedName, qtyRemaining, uom])
+
+    const seedId = seedResult.insertId;
+
+    const [remResult] = await pool.query(`
+        INSERT INTO seeds_remaining (seed_id, warehouse_type, qty_remaining)
+        VALUES(?,?,?)
+    `,[seedId,'province',qtyRemaining ]);
+
+    return {
+        ...body,
+        id: seedId
+    }
 }

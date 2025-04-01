@@ -1,5 +1,5 @@
 import express from 'express';
-import { getDistributionByM, getDistributions, getInventoryReport, getSeeds, provinceDistribute } from '../controller/province.js';
+import { addSeed, getDistributionByM, getDistributions, getInventoryReport, getSeeds, provinceDistribute } from '../controller/province.js';
 const router = express.Router();
 
 
@@ -7,6 +7,11 @@ router.get('/seeds', async(req,res)=>{
     const seeds = await getSeeds();
     res.status(201).send(seeds);
 });
+
+router.post('/seeds', async(req,res)=>{
+    const result = await addSeed(req.body);
+    res.status(201).send(result);
+})
 
 router.post('/distribute', async(req,res)=>{
     const result = await provinceDistribute(req.body);
@@ -19,12 +24,10 @@ router.get('/distribute/:municipality/:status',async(req,res)=>{
 });
 
 router.get('/distribute/:id',async(req,res)=>{
-    console.log('id1', req.params.id)
     const result = await getDistributions(req.params.id);
     res.status(201).send(result);
 });
 router.get('/distribute',async(req,res)=>{
-    console.log('id1', req.params.id)
     const result = await getDistributions(req.params.id);
     res.status(201).send(result);
 });
