@@ -189,3 +189,21 @@ CREATE TABLE municipality_distribute_dtl (
     farmer_id INT,
     FOREIGN KEY (farmer_id) REFERENCES farmers(id)
 );
+
+ALTER TABLE farmers
+ADD COLUMN is_deleted BOOLEAN;
+
+ALTER TABLE seeds
+ADD COLUMN is_deleted BOOLEAN;
+
+SELECT dtl.seed_id,
+    seeds.name,
+    dtl.qty_distributed,
+    dtl.uom,
+    dtl.remarks,
+    farmers.name,
+    hdr.dt_submitted
+FROM municipality_distribute_dtl dtl
+LEFT OUTER JOIN municipality_distribute_hdr hdr ON (dtl.hdr_id = hdr.id)
+LEFT OUTER JOIN seeds ON (dtl.seed_id = seeds.id)
+LEFT OUTER JOIN farmers ON (dtl.farmer_id = farmers.id)

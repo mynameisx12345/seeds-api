@@ -15,6 +15,7 @@ const pool =  mysql.createPool({
 export async function getFarmers(){
     const [result] = await pool.query(`
         SELECT * FROM farmers
+        WHERE ISNULL(is_deleted) OR is_deleted = false
     `);
 
     return result;
@@ -203,4 +204,72 @@ export async function getDistributions(id){
     let parsedResult = parseResult(finalResult);
 
     return parsedResult;
+}
+
+export async function addFarmer(body){
+    const {name, contact, address, municipalityId,id} = body;
+    const dt_created = moment().format();
+    if(id){
+        const [result] = await pool.query(`
+            UPDATE farmers
+            SET name = ?,
+                contact = ?,
+                address = ?
+            WHERE id = ?
+        `,[name, contact,address, id])
+
+        return {
+            ...body
+        }
+    } else {
+        const [result] = await pool.query(`
+        INSERT INTO farmers (name,contact,address,municipality_id,dt_created)
+        VALUES(?,?,?,?,?)
+    `,[name, contact,address,municipalityId, dt_created]);
+
+        const insertId = result.insertId;
+        return {
+            ...body,
+            id: insertId
+        }
+    }
+  
+
+   
+}
+
+export async function deleteFarmer(id){
+    const [result] = await pool.query(`
+        UPDATE farmers
+        SET is_deleted = true
+        WHERE id = ?
+    `,[id]);
+
+    return {
+        id,
+        isDeleted:true
+    }
+}
+
+export async function getDistributionByFarmer(){
+    const [result] = await pool.query(`
+        SELECT dtl.seed_id seedId,
+            seeds.name seedName,
+            dtl.qty_distributed qtyDistributed,
+            dtl.uom,
+            dtl.remarks,
+            farmers.name farmersName,
+            hdr.dt_submitted dtSubmitted,
+            hdr.id,
+            hdr.municipality_id municipalityId,
+            municipality.name municipalityName
+        FROM municipality_distribute_dtl dtl
+        LEFT OUTER JOIN municipality_distribute_hdr hdr ON (dtl.hdr_id = hdr.id)
+        LEFT OUTER JOIN seeds ON (dtl.seed_id = seeds.id)
+        LEFT OUTER JOIN farmers ON (dtl.farmer_id = farmers.id)
+        LEFT OUTER JOIN municipality ON (hdr.municipality_id = municipality.id)
+        ORDER BY hdr.dt_submitted DESC
+    `);
+
+    return result;
 }

@@ -1,5 +1,5 @@
 import express from 'express';
-import { addSeed, getDistributionByM, getDistributions, getInventoryReport, getSeeds, provinceDistribute } from '../controller/province.js';
+import { addSeed, deleteSeeds, getDistributionByM, getDistributions, getInventoryReport, getSeeds, provinceDistribute } from '../controller/province.js';
 const router = express.Router();
 
 
@@ -10,6 +10,11 @@ router.get('/seeds', async(req,res)=>{
 
 router.post('/seeds', async(req,res)=>{
     const result = await addSeed(req.body);
+    res.status(201).send(result);
+})
+
+router.delete('/seeds/:id', async(req,res)=>{
+    const result = await deleteSeeds(req.params.id);
     res.status(201).send(result);
 })
 

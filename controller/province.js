@@ -20,8 +20,11 @@ export async function getSeeds(){
         seeds.qty_transit,
         seeds_remaining.qty_remaining,
         seeds_remaining.warehouse_type,
-        seeds_remaining.municipality_id
+        seeds_remaining.municipality_id,
+        mun.name municipality_name
     FROM seeds LEFT OUTER JOIN seeds_remaining ON (seeds.id = seeds_remaining.seed_id)
+    LEFT OUTER JOIN municipality mun ON (seeds_remaining.municipality_id = mun.id)
+    WHERE ISNULL(seeds.is_deleted) OR seeds.is_deleted = false
     `);
 
     const parseResult = (result) =>{
@@ -32,7 +35,8 @@ export async function getSeeds(){
                 inParsed.qty_remaining.push({
                     warehouse_type: res.warehouse_type,
                     municipality_id: res.municipality_id,
-                    qty_remaining: res.qty_remaining
+                    qty_remaining: res.qty_remaining,
+                    municipality_name: res.municipality_name
                 })
             } else {
                 parsed.push({
@@ -44,7 +48,8 @@ export async function getSeeds(){
                     qty_remaining: [{
                         warehouse_type: res.warehouse_type,
                         municipality_id: res.municipality_id,
-                        qty_remaining: res.qty_remaining
+                        qty_remaining: res.qty_remaining,
+                        municipality_name: res.municipality_name
                     }]
                 })
             }
@@ -84,7 +89,16 @@ export async function saveDistributeDtl(body){
 }
 
 async function updateSeedSub(detail){
-    const {seedId, qtyRemaining, qtyDistributed, qtyReceived, transactType, warehouseType, qty, municipalityId} = detail;
+    const {seedId, 
+        qtyRemaining, 
+        qtyDistributed, 
+        qtyReceived, 
+        transactType, 
+        warehouseType, 
+        qty, 
+        municipalityId,
+        isAbsolute
+    } = detail;
     if(warehouseType === 'province'){ 
         const [result] = await pool.query(`
             SELECT * FROM seeds_remaining
@@ -95,7 +109,7 @@ async function updateSeedSub(detail){
         if(result.length > 0){
             const {qty_remaining,id} = result[0];
 
-            const newRemaining =  (Number(qty_remaining) ?? 0) + qty
+            const newRemaining =  isAbsolute ? qty : (Number(qty_remaining) ?? 0) + qty
             
             const [adjustResult] = await pool.query(`
                 UPDATE seeds_remaining
@@ -104,7 +118,7 @@ async function updateSeedSub(detail){
             `,[newRemaining, id])
         } else {
             const [adjustResult] = await pool.query(`
-                INSERT INTO seeds_remining (seed_id, warehouse_type, qty_remaining)
+                INSERT INTO seeds_remaining (seed_id, warehouse_type, qty_remaining)
                 VALUES (?, ?, ?)
             `, [seedId, warehouseType, qty])
         }
@@ -121,7 +135,7 @@ async function updateSeedSub(detail){
         if(result.length > 0){
             const {qty_remaining,id} = result[0];
 
-            const newRemaining =  (Number(qty_remaining) ?? 0) + qty
+            const newRemaining = isAbsolute ? qty :  (Number(qty_remaining) ?? 0) + qty;
             
             const [adjustResult] = await pool.query(`
                 UPDATE seeds_remaining
@@ -429,21 +443,55 @@ export async function getInventoryReport(body){
 }
 
 export async function addSeed(body){
-    const {seedName, qtyRemaining, uom} = body;
-    const [seedResult] = await pool.query(`
-        INSERT INTO seeds (name, qty_remaining, uom)
-        VALUES(?,?,?)
-    `,[seedName, qtyRemaining, uom])
+    const {seedName, qtyRemaining, uom, qtySpecific,id } = body;
+    let seedId = id;
+    if(id){
+        const [seedResult] = await pool.query(`
+            UPDATE seeds
+            SET name = ?,
+                qty_remaining = ?,
+                uom = ?
+            WHERE id = ?
+        `,[seedName,qtyRemaining,uom, id])
 
-    const seedId = seedResult.insertId;
+        seedId = id;
 
-    const [remResult] = await pool.query(`
-        INSERT INTO seeds_remaining (seed_id, warehouse_type, qty_remaining)
-        VALUES(?,?,?)
-    `,[seedId,'province',qtyRemaining ]);
+    } else {
+        const [seedResult] = await pool.query(`
+            INSERT INTO seeds (name, qty_remaining, uom)
+            VALUES(?,?,?)
+        `,[seedName, qtyRemaining, uom])
+
+        seedId = seedResult.insertId;
+    }
+    
+
+
+    qtySpecific.forEach((qty)=>{
+        updateSeedSub({
+            seedId: seedId, 
+            warehouseType: qty.warehouseType, 
+            qty: qty.qtyRemaining,
+            municipalityId: qty.municipalityId,
+            isAbsolute: true
+        })
+    })
 
     return {
         ...body,
         id: seedId
+    }
+}
+
+export async function deleteSeeds(id){
+    const [result] = await pool.query(`
+        UPDATE seeds
+        SET is_deleted = true
+        WHERE id = ?
+    `,[id])
+
+    return {
+        id,
+        isDeleted: true
     }
 }
